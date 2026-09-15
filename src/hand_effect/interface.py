@@ -12,6 +12,9 @@ class Point:
 class HandTips:
     thumb: Point
     index: Point
+    middle: Point
+    pinky: Point
+    landmarks: tuple[Point, ...] = ()
 
 
 Quad: TypeAlias = tuple[Point, Point, Point, Point]

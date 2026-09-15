@@ -1,30 +1,42 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from .interface import HandTips, HandTracker, Point, Quad
+from .interface import HandTips, HandTracker, Quad
 
 
 class State(str, Enum):
-    WAITING = "waiting"
-    TRACKING = "tracking"
+    WAITING = 'waiting'
+    TRACKING = 'tracking'
 
 
 @dataclass(frozen=True)
 class Result:
     state: State
-    quad: Quad | None
+    quads: tuple[Quad | None, ...]
+    hands: tuple[HandTips, ...]
 
 
-def quad_from_hands(hands: list[HandTips], min_area: float = 0.002) -> Quad | None:
-    if len(hands) != 2 or any(not 0 <= value <= 1 for hand in hands for point in (hand.thumb, hand.index) for value in (point.x, point.y)):
-        return None
+def quads_from_hands(hands: list[HandTips], min_area: float = 0.002) -> tuple[Quad | None, ...]:
+    if len(hands) != 2:
+        return ()
 
-    left, right = sorted(hands, key=lambda hand: (hand.thumb.x + hand.index.x) / 2)
-    left_top, left_bottom = sorted((left.thumb, left.index), key=lambda point: point.y)
-    right_top, right_bottom = sorted((right.thumb, right.index), key=lambda point: point.y)
-    quad = (left_top, right_top, right_bottom, left_bottom)
-    area = abs(sum(point.x * quad[(index + 1) % 4].y - quad[(index + 1) % 4].x * point.y for index, point in enumerate(quad))) / 2
-    return quad if area >= min_area else None
+    tips = [
+        (hand.thumb, hand.index, hand.middle, hand.pinky)
+        for hand in hands
+    ]
+    if any(not 0 <= value <= 1 for hand in tips for point in hand for value in (point.x, point.y)):
+        return ()
+
+    left, right = sorted(tips, key=lambda hand: sum(point.x for point in hand) / len(hand))
+    quads = []
+    for index in range(3):
+        quad = (left[index], right[index], right[index + 1], left[index + 1])
+        area = abs(sum(
+            point.x * quad[(corner + 1) % 4].y - quad[(corner + 1) % 4].x * point.y
+            for corner, point in enumerate(quad)
+        )) / 2
+        quads.append(quad if area >= min_area else None)
+    return tuple(quads)
 
 
 class HandEffectPipeline:
@@ -34,6 +46,7 @@ class HandEffectPipeline:
         self.state = State.WAITING
 
     def process(self, frame: object) -> Result:
-        quad = quad_from_hands(list(self.tracker.detect(frame)), self.min_area)
-        self.state = State.TRACKING if quad else State.WAITING
-        return Result(self.state, quad)
+        hands = tuple(self.tracker.detect(frame))
+        quads = quads_from_hands(list(hands), self.min_area)
+        self.state = State.TRACKING if any(quads) else State.WAITING
+        return Result(self.state, quads, hands)

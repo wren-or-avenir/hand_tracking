@@ -1,12 +1,20 @@
 # Hand Tracking Corner Pin
 
-复刻 `design/fork_video.mp4` 中的双手四指尖实时画面形变效果。
+复刻 `design/fork_video.mp4` 中由双手四指控制的多区域实时滤镜效果。
 
-当前完成第一阶段：数据链路、接口、四点映射、状态机与离线 mock。运行：
+运行全屏摄像头效果（按 `q` 或 `Esc` 退出）：
+
+```powershell
+.\scripts\run.cmd
+```
+
+离线检查：
 
 ```powershell
 .\scripts\run.cmd --mock
-python .\tests\test_pipeline.py
+conda run --name hand_tracking python .\tests\test_pipeline.py
 ```
+
+部署步骤见 [docs/startup/production.md](docs/startup/production.md)。
 
 设计与后续步骤见 [docs/design/hand_effect.md](docs/design/hand_effect.md)。
